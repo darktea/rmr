@@ -1,4 +1,5 @@
 pub mod frame;
+
 pub use frame::Frame;
 
 pub mod connection;
@@ -6,9 +7,13 @@ pub use connection::Connection;
 pub use connection::Error;
 
 use tokio::net::TcpStream;
+use tracing::{info, instrument};
 
 // 针对每个连接，进行无限循环，直到：出错（返回 Err）或者客户端关闭连接（返回一个 Ok）
-pub async fn process(socket: TcpStream) -> Result<(), Error> {
+#[instrument(skip(socket))]
+pub async fn process(socket: TcpStream, fd: i32) -> Result<(), Error> {
+    info!("the server accepted a new client. fd is: {}", fd);
+
     let mut connection = Connection::new(socket);
 
     loop {
@@ -20,15 +25,15 @@ pub async fn process(socket: TcpStream) -> Result<(), Error> {
             Some(frame) => frame,
             // 如果返回 None，代表客户端关闭连接，结束循环，返回 Ok
             None => {
-                println!("peer closed");
+                info!("peer closed");
                 return Ok(());
             }
         };
 
-        println!("get frame: {:?}", frame);
+        info!("get a new frame: {:?}", frame);
         let response = Frame::Simple("OK".to_string());
         // 如果 write_frame 出错，也会结束循环，抛出一个 IoFailed
         connection.write_frame(&response).await?;
-        println!("sent response: {:?}", response);
+        info!("sent response successfully: {:?}", response);
     }
 }

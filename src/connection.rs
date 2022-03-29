@@ -6,6 +6,8 @@ use std::io::Cursor;
 
 use crate::frame::Frame;
 
+use tracing::{error, info};
+
 #[derive(Debug, Snafu)]
 pub enum Error {
     #[snafu(display("failed. error is reset"))]
@@ -74,7 +76,7 @@ impl Connection {
                 let frame = match Frame::parse(&mut buf) {
                     Ok(f) => f,
                     Err(e) => {
-                        println!("io error. {:?}", e);
+                        error!("io error. {:?}", e);
                         FrameSnafu.fail()?
                     }
                 };
@@ -84,7 +86,7 @@ impl Connection {
             Err(e) => match e {
                 crate::frame::Error::IncompleteError => Ok(None),
                 other => {
-                    println!("io error. {:?}", other);
+                    error!("io error. {:?}", other);
                     FrameSnafu.fail()?
                 }
             },
@@ -92,7 +94,7 @@ impl Connection {
     }
 
     pub async fn write_frame(&mut self, frame: &Frame) -> Result<()> {
-        println!("try to write for the frame: {:?}", frame);
+        info!("try to write the frame to client: {:?}", frame);
 
         self.stream.write_u8(b'+').await.context(IoSnafu)?;
         self.stream
