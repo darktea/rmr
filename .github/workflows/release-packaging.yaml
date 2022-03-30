@@ -9,7 +9,7 @@ jobs:
   release:
     name: Release Packaging
     env:
-      PROJECT_NAME_UNDERSCORE: rfit
+      PROJECT_NAME_UNDERSCORE: rmr
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2

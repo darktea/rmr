@@ -216,7 +216,7 @@ mod tests {
         let mut buff = Cursor::new(&v[..]);
 
         // 把 position 设置到 buff 的最后，get_u8 出错
-        buff.set_position(5);
+        buff.set_position(v.len().try_into().unwrap());
         assert_eq!(get_u8(&mut buff).is_err(), true);
 
         //  把 position 设置到 buff 的开头
