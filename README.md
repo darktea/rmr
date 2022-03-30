@@ -24,4 +24,4 @@ cargo run --bin client
 * 利用 log 配合 tracing 来输出日志
   * 设置日志级别：export RUST_LOG=info
 * 利用 snafu 来创建 Error 类型，并遵循 snafu 提倡的 Error Handling philosophy
-* 目前使用的 IDE 是：Visual Stdio Code
+* 目前使用的 IDE 是：Visual Studio Code

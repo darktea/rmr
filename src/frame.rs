@@ -29,15 +29,6 @@ pub enum Frame {
     Array(Vec<Frame>),
 }
 
-// 先从 buff 里面获取第一个字节
-fn get_u8(src: &mut Cursor<&[u8]>) -> Result<u8, Error> {
-    if !src.has_remaining() {
-        IncompleteSnafu.fail()?
-    }
-
-    Ok(src.get_u8())
-}
-
 impl Frame {
     pub fn check(src: &mut Cursor<&[u8]>) -> Result<()> {
         match get_u8(src)? {
@@ -180,6 +171,15 @@ fn get_line<'a>(src: &mut Cursor<&'a [u8]>) -> Result<&'a [u8]> {
     IncompleteSnafu.fail()?
 }
 
+// 先从 buff 里面获取第一个字节
+fn get_u8(src: &mut Cursor<&[u8]>) -> Result<u8> {
+    if !src.has_remaining() {
+        IncompleteSnafu.fail()?
+    }
+
+    Ok(src.get_u8())
+}
+
 fn get_decimal(src: &mut Cursor<&[u8]>) -> Result<u64> {
     use atoi::atoi;
 
@@ -203,4 +203,30 @@ fn skip(src: &mut Cursor<&[u8]>, n: usize) -> Result<()> {
 
     src.advance(n);
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+
+    #[test]
+    fn ts_on_get_u8() {
+        let v = vec![b'1', b'2', b'3', b'4', b'5'];
+        let mut buff = Cursor::new(&v[..]);
+
+        // 把 position 设置到 buff 的最后，get_u8 出错
+        buff.set_position(5);
+        assert_eq!(get_u8(&mut buff).is_err(), true);
+
+        //  把 position 设置到 buff 的开头
+        buff.set_position(0);
+
+        // 不断的 get 一个 u8，然后推进
+        assert_eq!(get_u8(&mut buff).unwrap(), 49);
+        assert_eq!(get_u8(&mut buff).unwrap(), 50);
+        assert_eq!(get_u8(&mut buff).unwrap(), 51);
+        assert_eq!(get_u8(&mut buff).unwrap(), 52);
+        assert_eq!(get_u8(&mut buff).unwrap(), 53);
+    }
 }
