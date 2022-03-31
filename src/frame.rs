@@ -188,6 +188,7 @@ fn get_decimal(src: &mut Cursor<&[u8]>) -> Result<u64> {
     atoi::<u64>(line).ok_or_else(|| DecimalSnafu.build())
 }
 
+// 切掉当前 position 之前的内容，然后返回剩余内容的第一个 u8
 fn peek_u8(src: &mut Cursor<&[u8]>) -> Result<u8> {
     if !src.has_remaining() {
         IncompleteSnafu.fail()?
@@ -217,7 +218,7 @@ mod tests {
 
         // 把 position 设置到 buff 的最后，get_u8 出错
         buff.set_position(v.len().try_into().unwrap());
-        assert_eq!(get_u8(&mut buff).is_err(), true);
+        assert!(get_u8(&mut buff).is_err());
 
         //  把 position 设置到 buff 的开头
         buff.set_position(0);
@@ -229,4 +230,21 @@ mod tests {
         assert_eq!(get_u8(&mut buff).unwrap(), 52);
         assert_eq!(get_u8(&mut buff).unwrap(), 53);
     }
+
+    #[test]
+    fn ts_on_peek_u8() {
+        let v = vec![b'1', b'2', b'3', b'4', b'5'];
+        let mut buff = Cursor::new(&v[..]);
+
+        // 把 position 设置到 buff 的最后，get_u8 出错
+        buff.set_position(v.len().try_into().unwrap());
+        assert!(peek_u8(&mut buff).is_err());
+
+        //  把 position 设置到 buff 的开头
+        buff.set_position(3);
+
+        // peek 一个 u8
+        assert_eq!(peek_u8(&mut buff).unwrap(), 52);
+    }
+
 }
