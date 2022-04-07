@@ -246,5 +246,4 @@ mod tests {
         // peek 一个 u8
         assert_eq!(peek_u8(&mut buff).unwrap(), 52);
     }
-
 }
