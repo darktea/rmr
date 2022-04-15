@@ -1,4 +1,3 @@
-use reqwest;
 use reqwest::header;
 use std::time::Duration;
 
