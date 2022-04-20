@@ -32,7 +32,7 @@ pub async fn process(socket: TcpStream, fd: i32) -> Result<()> {
     let mut connection = Connection::new(socket);
 
     loop {
-        // read_frame 返回 Err 的话，透传 Err 给 process 的调用者
+        // read_frame 返回 Err 的话，返回 Err 给 process 的调用者
         let maybe_frame = connection.read_frame().await.context(ConnectSnafu)?;
 
         // 成功读到一个 Fame 的话，又有 2 种可能，match：
@@ -47,9 +47,11 @@ pub async fn process(socket: TcpStream, fd: i32) -> Result<()> {
 
         info!("get a new frame: {:?}", frame);
 
+        // 把 Frame 转换为 Command
         let cmd = cmd::Command::from_frame(frame).context(CommandSnafu)?;
         info!("get first cmd: {:?}", cmd);
 
+        // 执行 Command
         cmd.apply(&mut connection).await.context(CommandSnafu)?;
     }
 }
