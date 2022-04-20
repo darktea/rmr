@@ -1,3 +1,4 @@
+pub mod cmd;
 pub mod frame;
 pub mod parser;
 
@@ -17,8 +18,8 @@ use snafu::{prelude::*, ResultExt};
 pub enum Error {
     #[snafu(display("failed on network {}", source))]
     ConnectError { source: connection::Error },
-    #[snafu(display("failed for parsing error{}", source))]
-    ParseError { source: parser::Error },
+    #[snafu(display("failed for command run error{}", source))]
+    CommandError { source: cmd::Error },
 }
 
 pub type Result<T, E = Error> = std::result::Result<T, E>;
@@ -46,16 +47,9 @@ pub async fn process(socket: TcpStream, fd: i32) -> Result<()> {
 
         info!("get a new frame: {:?}", frame);
 
-        let mut parser = Parser::new(frame).context(ParseSnafu)?;
-        let s = parser.next_string().context(ParseSnafu)?;
-        info!("get first cmd: {}", s);
+        let cmd = cmd::Command::from_frame(frame).context(CommandSnafu)?;
+        info!("get first cmd: {:?}", cmd);
 
-        let response = Frame::Simple("OK".to_string());
-        // 如果 write_frame 出错，也会结束循环，抛出一个 IoFailed
-        connection
-            .write_frame(&response)
-            .await
-            .context(ConnectSnafu)?;
-        info!("sent response successfully: {:?}", response);
+        cmd.apply(&mut connection).await.context(CommandSnafu)?;
     }
 }
