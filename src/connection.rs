@@ -2,7 +2,7 @@ use bytes::Buf;
 
 use snafu::prelude::*;
 
-use std::io::Cursor;
+use std::io::{self, Cursor};
 
 use crate::frame::Frame;
 
@@ -21,7 +21,6 @@ pub enum Error {
 pub type Result<T, E = Error> = std::result::Result<T, E>;
 
 use bytes::BytesMut;
-use std::io::{self};
 use tokio::io::{AsyncReadExt, AsyncWriteExt, BufWriter};
 use tokio::net::TcpStream;
 

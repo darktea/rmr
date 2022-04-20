@@ -6,6 +6,10 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [[bin]]
+name = "main"
+path = "src/main.rs"
+
+[[bin]]
 name = "client"
 path = "src/bin/client.rs"
 
@@ -14,6 +18,7 @@ name = "server"
 path = "src/bin/server.rs"
 
 [dependencies]
+reqwest = { version = "0.11", features = ["json"] }
 tokio = { version = "1", features = ["full"] }
 mini-redis = "0.4"
 bytes = "1"
