@@ -45,6 +45,7 @@ impl Parser {
             // types.
             Frame::Simple(s) => Ok(s),
             Frame::Bulk(data) => {
+                // bytes 数组转换为 String
                 let s = str::from_utf8(&data[..]).context(EncodeSnafu)?.to_string();
                 Ok(s)
             }

@@ -51,7 +51,7 @@ pub async fn process(socket: TcpStream, fd: i32) -> Result<()> {
         let cmd = cmd::Command::from_frame(frame).context(CommandSnafu)?;
         info!("get first cmd: {:?}", cmd);
 
-        // 执行 Command
+        // 执行 Command。遇到异常的话，退出循环
         cmd.apply(&mut connection).await.context(CommandSnafu)?;
     }
 }
