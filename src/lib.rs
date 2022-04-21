@@ -18,21 +18,21 @@ use snafu::{prelude::*, ResultExt};
 pub enum Error {
     #[snafu(display("failed on network {}", source))]
     ConnectError { source: connection::Error },
-    #[snafu(display("failed for command run error{}", source))]
+    #[snafu(display("failed for command run error. {}", source))]
     CommandError { source: cmd::Error },
 }
 
 pub type Result<T, E = Error> = std::result::Result<T, E>;
 
 // 针对每个连接，进行无限循环，直到：出错（返回 Err）或者客户端关闭连接（返回一个 Ok）
-#[instrument(skip(socket))]
-pub async fn process(socket: TcpStream, fd: i32) -> Result<()> {
+#[instrument(skip(socket, cli))]
+pub async fn process(socket: TcpStream, fd: i32, cli: &mut reqwest::Client) -> Result<()> {
     info!("the server accepted a new client. fd is: {}", fd);
 
     let mut connection = Connection::new(socket);
 
     loop {
-        // read_frame 返回 Err 的话，透传 Err 给 process 的调用者
+        // read_frame 返回 Err 的话，返回 Err 给 process 的调用者
         let maybe_frame = connection.read_frame().await.context(ConnectSnafu)?;
 
         // 成功读到一个 Fame 的话，又有 2 种可能，match：
@@ -47,9 +47,13 @@ pub async fn process(socket: TcpStream, fd: i32) -> Result<()> {
 
         info!("get a new frame: {:?}", frame);
 
+        // 把 Frame 转换为 Command
         let cmd = cmd::Command::from_frame(frame).context(CommandSnafu)?;
         info!("get first cmd: {:?}", cmd);
 
-        cmd.apply(&mut connection).await.context(CommandSnafu)?;
+        // 执行 Command。遇到异常的话，退出循环
+        cmd.apply(cli, &mut connection)
+            .await
+            .context(CommandSnafu)?;
     }
 }

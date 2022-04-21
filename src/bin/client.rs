@@ -8,11 +8,6 @@ enum Command {
         key: String,
         resp: Responder<Option<Bytes>>,
     },
-    Set {
-        key: String,
-        val: Bytes,
-        resp: Responder<()>,
-    },
 }
 
 /// 管理任务可以使用该发送端将命令执行的结果传回给发出命令的任务
@@ -32,11 +27,6 @@ async fn main() {
             match cmd {
                 Command::Get { key, resp } => {
                     let res = client.get(&key).await;
-                    // 忽略错误
-                    let _ = resp.send(res);
-                }
-                Command::Set { key, val, resp } => {
-                    let res = client.set(&key, val).await;
                     // 忽略错误
                     let _ = resp.send(res);
                 }
@@ -64,9 +54,8 @@ async fn main() {
 
     let t2 = tokio::spawn(async move {
         let (resp_tx, resp_rx) = oneshot::channel();
-        let cmd = Command::Set {
-            key: "foo".to_string(),
-            val: "bar".into(),
+        let cmd = Command::Get {
+            key: "bar".to_string(),
             resp: resp_tx,
         };
 
