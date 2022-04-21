@@ -1,11 +1,15 @@
+use bytes::Bytes;
+
 use crate::connection;
 use crate::parser;
 use crate::Frame;
+use connection::Connection;
+
 use snafu::{prelude::*, ResultExt};
 use tracing::info;
 
 use reqwest::header;
-use std::time::Duration;
+use reqwest::Client;
 
 use serde_json::Value;
 
@@ -44,18 +48,11 @@ impl Get {
     }
 
     // 实现 Get 命令：调用 Http 请求，查询 httpbin.org/ip 服务
-    pub async fn apply(self, connection: &mut connection::Connection) -> Result<()> {
+    pub async fn apply(self, cli: &mut Client, connection: &mut Connection) -> Result<()> {
         let mut headers = header::HeaderMap::new();
         headers.insert("Accept", header::HeaderValue::from_static("text/plain"));
 
-        let client = reqwest::Client::builder()
-            .default_headers(headers)
-            .timeout(Duration::from_secs(3))
-            .connection_verbose(true)
-            .build()
-            .context(HttpSnafu)?;
-
-        let doge = client
+        let doge = cli
             .get("http://pie.dev/get")
             .send()
             .await
@@ -68,7 +65,8 @@ impl Get {
 
         let v: Value = serde_json::from_str(doge.as_str()).context(JsonSnafu)?;
 
-        let response = Frame::Simple(v["origin"].to_string());
+        let data = Bytes::from(v["origin"].to_string());
+        let response = Frame::Bulk(data);
         // 如果 write_frame 出错，也会结束循环，抛出一个 IoFailed
         connection
             .write_frame(&response)
@@ -114,10 +112,10 @@ impl Command {
         Ok(cmd)
     }
 
-    pub async fn apply(self, connection: &mut connection::Connection) -> Result<()> {
+    pub async fn apply(self, cli: &mut Client, connection: &mut Connection) -> Result<()> {
         // Command 自己是一个 enum，对这个 enum 进行 match
         match self {
-            Command::Get(get) => get.apply(connection).await?,
+            Command::Get(get) => get.apply(cli, connection).await?,
             _ => {
                 // 目前先只实现 Get，其他的命令简单回复简单 string：OK
                 let response = Frame::Simple("OK".to_string());

@@ -25,8 +25,8 @@ pub enum Error {
 pub type Result<T, E = Error> = std::result::Result<T, E>;
 
 // 针对每个连接，进行无限循环，直到：出错（返回 Err）或者客户端关闭连接（返回一个 Ok）
-#[instrument(skip(socket))]
-pub async fn process(socket: TcpStream, fd: i32) -> Result<()> {
+#[instrument(skip(socket, cli))]
+pub async fn process(socket: TcpStream, fd: i32, cli: &mut reqwest::Client) -> Result<()> {
     info!("the server accepted a new client. fd is: {}", fd);
 
     let mut connection = Connection::new(socket);
@@ -52,6 +52,8 @@ pub async fn process(socket: TcpStream, fd: i32) -> Result<()> {
         info!("get first cmd: {:?}", cmd);
 
         // 执行 Command。遇到异常的话，退出循环
-        cmd.apply(&mut connection).await.context(CommandSnafu)?;
+        cmd.apply(cli, &mut connection)
+            .await
+            .context(CommandSnafu)?;
     }
 }
