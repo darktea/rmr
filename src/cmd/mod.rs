@@ -7,14 +7,18 @@ use tracing::info;
 use reqwest::header;
 use std::time::Duration;
 
+use serde_json::Value;
+
 #[derive(Debug, Snafu)]
 pub enum Error {
-    #[snafu(display("failed on network {}", source))]
+    #[snafu(display("failed on network error. {}", source))]
     ConnectError { source: connection::Error },
-    #[snafu(display("failed for parsing error{}", source))]
+    #[snafu(display("failed for parsing error. {}", source))]
     CommandError { source: parser::Error },
-    #[snafu(display("failed for http error{}", source))]
+    #[snafu(display("failed for http error. {}", source))]
     HttpError { source: reqwest::Error },
+    #[snafu(display("failed for json error. {}", source))]
+    JsonError { source: serde_json::Error },
 }
 
 pub type Result<T, E = Error> = std::result::Result<T, E>;
@@ -52,7 +56,7 @@ impl Get {
             .context(HttpSnafu)?;
 
         let doge = client
-            .get("https://httpbin.org/ip")
+            .get("http://pie.dev/get")
             .send()
             .await
             .context(HttpSnafu)?
@@ -62,7 +66,9 @@ impl Get {
 
         info!("Got {:#?}", doge);
 
-        let response = Frame::Simple(doge.len().to_string());
+        let v: Value = serde_json::from_str(doge.as_str()).context(JsonSnafu)?;
+
+        let response = Frame::Simple(v["origin"].to_string());
         // 如果 write_frame 出错，也会结束循环，抛出一个 IoFailed
         connection
             .write_frame(&response)

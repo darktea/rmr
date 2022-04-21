@@ -18,7 +18,7 @@ use snafu::{prelude::*, ResultExt};
 pub enum Error {
     #[snafu(display("failed on network {}", source))]
     ConnectError { source: connection::Error },
-    #[snafu(display("failed for command run error{}", source))]
+    #[snafu(display("failed for command run error. {}", source))]
     CommandError { source: cmd::Error },
 }
 
