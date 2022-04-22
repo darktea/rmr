@@ -65,7 +65,7 @@ impl Get {
 
         let origin = match v["origin"].as_str() {
             Some(s) => s,
-            None => {StrJsonSnafu.fail()?},
+            None => StrJsonSnafu.fail()?,
         };
 
         info!("Parsed Ok. the origin str is: {}", origin);

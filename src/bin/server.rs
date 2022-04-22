@@ -28,6 +28,7 @@ async fn main() {
         .default_headers(headers)
         .timeout(Duration::from_secs(3))
         .connection_verbose(true)
+        .pool_max_idle_per_host(20)
         .build()
         .unwrap();
 

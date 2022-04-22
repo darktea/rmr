@@ -42,7 +42,7 @@ async fn main() {
             resp: resp_tx,
         };
 
-        sleep(Duration::from_millis(500)).await;
+        sleep(Duration::from_millis(1000)).await;
 
         // 发送 GET 请求
         if tx.send(cmd).await.is_err() {
