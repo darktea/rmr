@@ -1,6 +1,7 @@
 use bytes::Bytes;
 use mini_redis::client;
 use tokio::sync::{mpsc, oneshot};
+use tokio::time::{sleep, Duration};
 
 #[derive(Debug)]
 enum Command {
@@ -40,6 +41,8 @@ async fn main() {
             key: "foo".to_string(),
             resp: resp_tx,
         };
+
+        sleep(Duration::from_millis(1000)).await;
 
         // 发送 GET 请求
         if tx.send(cmd).await.is_err() {
