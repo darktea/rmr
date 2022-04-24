@@ -33,6 +33,30 @@ pub struct Get {
     key: String,
 }
 
+async fn call_api(cli: &mut Client) -> Result<String> {
+    let doge = cli
+        .get("http://pie.dev/get")
+        .send()
+        .await
+        .context(HttpSnafu)?
+        .text()
+        .await
+        .context(HttpSnafu)?;
+
+    info!("Got {:#?}", doge);
+
+    let v: Value = serde_json::from_str(doge.as_str()).context(JsonSnafu)?;
+
+    let origin = match v["origin"].as_str() {
+        Some(s) => s,
+        None => StrJsonSnafu.fail()?,
+    };
+
+    info!("Parsed Ok. the origin str is: {}", origin);
+
+    Ok(origin.to_string())
+}
+
 impl Get {
     pub fn new(key: impl ToString) -> Get {
         Get {
@@ -50,26 +74,12 @@ impl Get {
 
     // 实现 Get 命令：调用 Http 请求，查询 httpbin.org/ip 服务
     pub async fn apply(self, cli: &mut Client, connection: &mut Connection) -> Result<()> {
-        let doge = cli
-            .get("http://pie.dev/get")
-            .send()
-            .await
-            .context(HttpSnafu)?
-            .text()
-            .await
-            .context(HttpSnafu)?;
+        let origin = call_api(cli).await.unwrap_or_else(|error| match error {
+            Error::HttpError { source: _ } => "failed on http".to_string(),
+            _ => "bad json".to_string(),
+        });
 
-        info!("Got {:#?}", doge);
-
-        let v: Value = serde_json::from_str(doge.as_str()).context(JsonSnafu)?;
-
-        let origin = match v["origin"].as_str() {
-            Some(s) => s,
-            None => StrJsonSnafu.fail()?,
-        };
-
-        info!("Parsed Ok. the origin str is: {}", origin);
-        let data = Bytes::from(origin.to_string());
+        let data = Bytes::from(origin);
 
         let response = Frame::Bulk(data);
         // 如果 write_frame 出错，也会结束循环，抛出一个 IoFailed
