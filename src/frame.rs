@@ -224,11 +224,11 @@ mod tests {
         buff.set_position(0);
 
         // 不断的 get 一个 u8，然后推进
-        assert_eq!(get_u8(&mut buff).unwrap(), 49);
-        assert_eq!(get_u8(&mut buff).unwrap(), 50);
-        assert_eq!(get_u8(&mut buff).unwrap(), 51);
-        assert_eq!(get_u8(&mut buff).unwrap(), 52);
-        assert_eq!(get_u8(&mut buff).unwrap(), 53);
+        assert_eq!(get_u8(&mut buff).unwrap(), b'1');
+        assert_eq!(get_u8(&mut buff).unwrap(), b'2');
+        assert_eq!(get_u8(&mut buff).unwrap(), b'3');
+        assert_eq!(get_u8(&mut buff).unwrap(), b'4');
+        assert_eq!(get_u8(&mut buff).unwrap(), b'5');
     }
 
     #[test]
@@ -240,10 +240,55 @@ mod tests {
         buff.set_position(v.len().try_into().unwrap());
         assert!(peek_u8(&mut buff).is_err());
 
-        //  把 position 设置到 buff 的开头
+        //  把 position 设置为 3（从 0 开始）
         buff.set_position(3);
 
-        // peek 一个 u8
-        assert_eq!(peek_u8(&mut buff).unwrap(), 52);
+        // peek 位置是 3 的数据
+        assert_eq!(peek_u8(&mut buff).unwrap(), b'4');
+    }
+
+    #[tokio::test]
+    async fn ts_on_http_mock() {
+        use httpmock::prelude::*;
+        use serde_json::{json, Value};
+
+        // mock a htpp server, and we can get json content from this http mock:
+        // {"origin" : "1.1.1.1"}
+        let json_key = "origin";
+        let json_value = "1.1.1.1";
+
+        // Start a lightweight mock server by async.
+        let server = MockServer::start_async().await;
+
+        // Create a mock on the server.
+        let hello_mock = server
+            .mock_async(|when, then| {
+                when.method(GET)
+                    .path("/translate")
+                    .query_param("word", "hello");
+                then.status(200)
+                    .header("content-type", "application/json")
+                    .json_body(json!({ json_key: json_value }));
+            })
+            .await;
+
+        // Send an HTTP request to the mock server
+        // the body is a json string
+        let body = reqwest::get(server.url("/translate?word=hello"))
+            .await
+            .unwrap()
+            .text()
+            .await
+            .unwrap();
+
+        // Ensure the specified mock was called exactly one time (or fail with a detailed error description).
+        hello_mock.assert_async().await;
+
+        // try to parse the json value
+        let v: Value = serde_json::from_str(body.as_str()).unwrap();
+
+        let origin = v[json_key].as_str().unwrap();
+
+        assert_eq!(origin, json_value);
     }
 }
