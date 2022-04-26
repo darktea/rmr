@@ -153,6 +153,10 @@ impl Frame {
 
 /// 检测到一个完整的行（\r\n 结尾）
 fn get_line<'a>(src: &mut Cursor<&'a [u8]>) -> Result<&'a [u8]> {
+    if src.get_ref().is_empty() {
+        IncompleteSnafu.fail()?
+    }
+
     // Scan the bytes directly
     let start = src.position() as usize;
     // Scan to the second to last byte
@@ -210,6 +214,53 @@ fn skip(src: &mut Cursor<&[u8]>, n: usize) -> Result<()> {
 mod tests {
 
     use super::*;
+
+    #[test]
+    fn ts_err_get_line() {
+        // should end of \r\n
+        let v = vec![b'1', b'2'];
+        let mut buff = Cursor::new(&v[..]);
+
+        buff.set_position(0);
+        assert!(get_line(&mut buff).is_err());
+
+        // should not be an empty buff
+        let v_empty: Vec<u8> = Vec::new();
+        let mut buff_empty = Cursor::new(&v_empty[..]);
+
+        buff_empty.set_position(0);
+        assert!(get_line(&mut buff_empty).is_err());
+    }
+
+    #[test]
+    fn ts_on_get_line() {
+        let v = vec![b'1', b'2', b'\r', b'\n', b'5', b'\r', b'\n'];
+        let mut buff = Cursor::new(&v[..]);
+
+        // 把 position 设置到 buff 的最后，get_u8 出错
+        buff.set_position(v.len().try_into().unwrap());
+        assert!(get_line(&mut buff).is_err());
+
+        //  把 position 设置到 buff 的开头
+        buff.set_position(0);
+        assert_eq!(buff.position(), 0);
+
+        // get the first line
+        let line = get_line(&mut buff).unwrap().to_vec();
+        // Convert the first line to a String
+        let line_str = String::from_utf8(line).unwrap();
+
+        assert_eq!(line_str, "12");
+        assert_eq!(buff.position(), 4);
+
+        // get the 2nd line
+        let line_2 = get_line(&mut buff).unwrap().to_vec();
+        // Convert the 2nd line to a String
+        let line_str_2 = String::from_utf8(line_2).unwrap();
+
+        assert_eq!(line_str_2, "5");
+        assert_eq!(buff.position(), 7);
+    }
 
     #[test]
     fn ts_on_get_u8() {
