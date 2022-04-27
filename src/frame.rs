@@ -216,6 +216,28 @@ mod tests {
     use super::*;
 
     #[test]
+
+    fn ts_get_decimal() {
+        let v = vec![b'1', b'2', b'\r', b'\n'];
+        let mut buff = Cursor::new(&v[..]);
+
+        buff.set_position(0);
+        assert_eq!(get_decimal(&mut buff).unwrap(), 12);
+
+        let v = vec![b'1', b'b', b'\r', b'\n'];
+        let mut buff = Cursor::new(&v[..]);
+
+        buff.set_position(0);
+        assert_eq!(get_decimal(&mut buff).unwrap(), 1);
+
+        let v = vec![b'a', b'b', b'\r', b'\n'];
+        let mut buff = Cursor::new(&v[..]);
+
+        buff.set_position(0);
+        assert!(get_decimal(&mut buff).is_err());
+    }
+
+    #[test]
     fn ts_err_get_line() {
         // should end of \r\n
         let v = vec![b'1', b'2'];
