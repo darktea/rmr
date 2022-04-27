@@ -1,8 +1,8 @@
 use bytes::Bytes;
 
 use crate::connection;
+use crate::frame::Frame;
 use crate::parser;
-use crate::Frame;
 use connection::Connection;
 
 use snafu::{prelude::*, ResultExt};
