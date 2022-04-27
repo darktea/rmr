@@ -216,7 +216,44 @@ mod tests {
     use super::*;
 
     #[test]
+    fn ts_check() {
+        // 普通字符串："ab"
+        let v = vec![b'+', b'a', b'b', b'\r', b'\n'];
+        let mut buff = Cursor::new(&v[..]);
+        assert!(Frame::check(&mut buff).is_ok());
 
+        // 错误类型
+        let v = vec![b'-', b'a', b'b', b'\r', b'\n'];
+        let mut buff = Cursor::new(&v[..]);
+        assert!(Frame::check(&mut buff).is_ok());
+
+        // 异常的数字类型
+        let v = vec![b':', b'a', b'b', b'\r', b'\n'];
+        let mut buff = Cursor::new(&v[..]);
+        assert!(Frame::check(&mut buff).is_err());
+
+        // 长度为 0 的数组
+        let v = vec![b'*', b'0', b'\r', b'\n'];
+        let mut buff = Cursor::new(&v[..]);
+        assert!(Frame::check(&mut buff).is_ok());
+
+        // 特殊 Bulk String：'-1\r\n'
+        let v = vec![b'$', b'-', b'1', b'\r', b'\n'];
+        let mut buff = Cursor::new(&v[..]);
+        assert!(Frame::check(&mut buff).is_ok());
+
+        // 异常的 Bulk String
+        let v = vec![b'$', b'3', b'\r', b'\n'];
+        let mut buff = Cursor::new(&v[..]);
+        assert!(Frame::check(&mut buff).is_err());
+
+        // 长度为 3 的 Bulk String："123"
+        let v = vec![b'$', b'3', b'\r', b'\n', b'1', b'2', b'3', b'\r', b'\n'];
+        let mut buff = Cursor::new(&v[..]);
+        assert!(Frame::check(&mut buff).is_ok());
+    }
+
+    #[test]
     fn ts_get_decimal() {
         let v = vec![b'1', b'2', b'\r', b'\n'];
         let mut buff = Cursor::new(&v[..]);
