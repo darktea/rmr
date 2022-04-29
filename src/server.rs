@@ -1,3 +1,4 @@
+use std::future::Future;
 use std::os::unix::prelude::AsRawFd;
 
 use reqwest::header;
@@ -31,11 +32,7 @@ pub enum Error {
 
 pub type Result<T, E = Error> = std::result::Result<T, E>;
 
-pub async fn run() -> Result<()> {
-    let listener = TcpListener::bind("127.0.0.1:6379").await.context(IoSnafu)?;
-
-    warn!("the server starts to listen on PORT: 6379");
-
+pub async fn loop_on_listener(listener: TcpListener) -> Result<()> {
     let mut headers = header::HeaderMap::new();
     headers.insert("Accept", header::HeaderValue::from_static("text/plain"));
     headers.insert(
@@ -69,6 +66,25 @@ pub async fn run() -> Result<()> {
                 error!("this client has an error, disconnect it {}!", err);
             }
         });
+    }
+}
+
+pub async fn run(shutdown: impl Future) -> Result<()> {
+    let listener = TcpListener::bind("127.0.0.1:6379").await.context(IoSnafu)?;
+
+    warn!("the server starts to listen on PORT: 6379");
+
+    tokio::select! {
+        resp = loop_on_listener(listener) => {
+            if let Err(e) = resp {
+                error!("the server on error: {}", e);
+            }
+            Ok(())
+        }
+        _ = shutdown => {
+            warn!("the server shutdown");
+            Ok(())
+        }
     }
 }
 
