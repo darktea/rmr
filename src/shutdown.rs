@@ -23,6 +23,7 @@ impl Shutdown {
             return;
         }
 
+        // 当 server 要 shutdown 时，这里会接收到一个 Err(RecvError::Closed) 消息
         let _ = self.notify.recv().await;
 
         self.shutdown = true;
