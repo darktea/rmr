@@ -153,6 +153,10 @@ impl Frame {
 
 /// 检测到一个完整的行（\r\n 结尾）
 fn get_line<'a>(src: &mut Cursor<&'a [u8]>) -> Result<&'a [u8]> {
+    if src.get_ref().is_empty() {
+        IncompleteSnafu.fail()?
+    }
+
     // Scan the bytes directly
     let start = src.position() as usize;
     // Scan to the second to last byte
@@ -212,6 +216,112 @@ mod tests {
     use super::*;
 
     #[test]
+    fn ts_check() {
+        // 普通字符串："ab"
+        let v = vec![b'+', b'a', b'b', b'\r', b'\n'];
+        let mut buff = Cursor::new(&v[..]);
+        assert!(Frame::check(&mut buff).is_ok());
+
+        // 错误类型
+        let v = vec![b'-', b'a', b'b', b'\r', b'\n'];
+        let mut buff = Cursor::new(&v[..]);
+        assert!(Frame::check(&mut buff).is_ok());
+
+        // 异常的数字类型
+        let v = vec![b':', b'a', b'b', b'\r', b'\n'];
+        let mut buff = Cursor::new(&v[..]);
+        assert!(Frame::check(&mut buff).is_err());
+
+        // 长度为 0 的数组
+        let v = vec![b'*', b'0', b'\r', b'\n'];
+        let mut buff = Cursor::new(&v[..]);
+        assert!(Frame::check(&mut buff).is_ok());
+
+        // 特殊 Bulk String：'-1\r\n'
+        let v = vec![b'$', b'-', b'1', b'\r', b'\n'];
+        let mut buff = Cursor::new(&v[..]);
+        assert!(Frame::check(&mut buff).is_ok());
+
+        // 异常的 Bulk String
+        let v = vec![b'$', b'3', b'\r', b'\n'];
+        let mut buff = Cursor::new(&v[..]);
+        assert!(Frame::check(&mut buff).is_err());
+
+        // 长度为 3 的 Bulk String："123"
+        let v = vec![b'$', b'3', b'\r', b'\n', b'1', b'2', b'3', b'\r', b'\n'];
+        let mut buff = Cursor::new(&v[..]);
+        assert!(Frame::check(&mut buff).is_ok());
+    }
+
+    #[test]
+    fn ts_get_decimal() {
+        let v = vec![b'1', b'2', b'\r', b'\n'];
+        let mut buff = Cursor::new(&v[..]);
+
+        buff.set_position(0);
+        assert_eq!(get_decimal(&mut buff).unwrap(), 12);
+
+        let v = vec![b'1', b'b', b'\r', b'\n'];
+        let mut buff = Cursor::new(&v[..]);
+
+        buff.set_position(0);
+        assert_eq!(get_decimal(&mut buff).unwrap(), 1);
+
+        let v = vec![b'a', b'b', b'\r', b'\n'];
+        let mut buff = Cursor::new(&v[..]);
+
+        buff.set_position(0);
+        assert!(get_decimal(&mut buff).is_err());
+    }
+
+    #[test]
+    fn ts_err_get_line() {
+        // should end of \r\n
+        let v = vec![b'1', b'2'];
+        let mut buff = Cursor::new(&v[..]);
+
+        buff.set_position(0);
+        assert!(get_line(&mut buff).is_err());
+
+        // should not be an empty buff
+        let v_empty: Vec<u8> = Vec::new();
+        let mut buff_empty = Cursor::new(&v_empty[..]);
+
+        buff_empty.set_position(0);
+        assert!(get_line(&mut buff_empty).is_err());
+    }
+
+    #[test]
+    fn ts_on_get_line() {
+        let v = vec![b'1', b'2', b'\r', b'\n', b'5', b'\r', b'\n'];
+        let mut buff = Cursor::new(&v[..]);
+
+        // 把 position 设置到 buff 的最后，get_u8 出错
+        buff.set_position(v.len().try_into().unwrap());
+        assert!(get_line(&mut buff).is_err());
+
+        //  把 position 设置到 buff 的开头
+        buff.set_position(0);
+        assert_eq!(buff.position(), 0);
+
+        // get the first line
+        let line = get_line(&mut buff).unwrap().to_vec();
+        // Convert the first line to a String
+        let line_str = String::from_utf8(line).unwrap();
+
+        assert_eq!(line_str, "12");
+        assert_eq!(buff.position(), 4);
+
+        // get the 2nd line
+        let line_2 = get_line(&mut buff).unwrap().to_vec();
+        // Convert the 2nd line to a String
+        let line_str_2 = String::from_utf8(line_2).unwrap();
+
+        assert_eq!(line_str_2, "5");
+        assert_eq!(buff.position(), 7);
+    }
+
+    #[test]
     fn ts_on_get_u8() {
         let v = vec![b'1', b'2', b'3', b'4', b'5'];
         let mut buff = Cursor::new(&v[..]);
@@ -224,11 +334,11 @@ mod tests {
         buff.set_position(0);
 
         // 不断的 get 一个 u8，然后推进
-        assert_eq!(get_u8(&mut buff).unwrap(), 49);
-        assert_eq!(get_u8(&mut buff).unwrap(), 50);
-        assert_eq!(get_u8(&mut buff).unwrap(), 51);
-        assert_eq!(get_u8(&mut buff).unwrap(), 52);
-        assert_eq!(get_u8(&mut buff).unwrap(), 53);
+        assert_eq!(get_u8(&mut buff).unwrap(), b'1');
+        assert_eq!(get_u8(&mut buff).unwrap(), b'2');
+        assert_eq!(get_u8(&mut buff).unwrap(), b'3');
+        assert_eq!(get_u8(&mut buff).unwrap(), b'4');
+        assert_eq!(get_u8(&mut buff).unwrap(), b'5');
     }
 
     #[test]
@@ -240,10 +350,55 @@ mod tests {
         buff.set_position(v.len().try_into().unwrap());
         assert!(peek_u8(&mut buff).is_err());
 
-        //  把 position 设置到 buff 的开头
+        //  把 position 设置为 3（从 0 开始）
         buff.set_position(3);
 
-        // peek 一个 u8
-        assert_eq!(peek_u8(&mut buff).unwrap(), 52);
+        // peek 位置是 3 的数据
+        assert_eq!(peek_u8(&mut buff).unwrap(), b'4');
+    }
+
+    #[tokio::test]
+    async fn ts_on_http_mock() {
+        use httpmock::prelude::*;
+        use serde_json::{json, Value};
+
+        // mock a htpp server, and we can get json content from this http mock:
+        // {"origin" : "1.1.1.1"}
+        let json_key = "origin";
+        let json_value = "1.1.1.1";
+
+        // Start a lightweight mock server by async.
+        let server = MockServer::start_async().await;
+
+        // Create a mock on the server.
+        let hello_mock = server
+            .mock_async(|when, then| {
+                when.method(GET)
+                    .path("/translate")
+                    .query_param("word", "hello");
+                then.status(200)
+                    .header("content-type", "application/json")
+                    .json_body(json!({ json_key: json_value }));
+            })
+            .await;
+
+        // Send an HTTP request to the mock server
+        // the body is a json string
+        let body = reqwest::get(server.url("/translate?word=hello"))
+            .await
+            .unwrap()
+            .text()
+            .await
+            .unwrap();
+
+        // Ensure the specified mock was called exactly one time (or fail with a detailed error description).
+        hello_mock.assert_async().await;
+
+        // try to parse the json value
+        let v: Value = serde_json::from_str(body.as_str()).unwrap();
+
+        let origin = v[json_key].as_str().unwrap();
+
+        assert_eq!(origin, json_value);
     }
 }

@@ -11,11 +11,11 @@ use tracing::{error, info};
 #[derive(Debug, Snafu)]
 pub enum Error {
     #[snafu(display("failed. error is reset"))]
-    ResetError,
+    Reset,
     #[snafu(display("failed for io error {}", source))]
-    IoError { source: io::Error },
+    Io { source: io::Error },
     #[snafu(display("failed for bad frame"))]
-    FrameError,
+    Frame,
 }
 
 pub type Result<T, E = Error> = std::result::Result<T, E>;

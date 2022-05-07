@@ -38,7 +38,7 @@ async fn main() {
     let t1 = tokio::spawn(async move {
         let (resp_tx, resp_rx) = oneshot::channel();
         let cmd = Command::Get {
-            key: "foo".to_string(),
+            key: "http://pie.dev/get".to_string(),
             resp: resp_tx,
         };
 
@@ -58,7 +58,7 @@ async fn main() {
     let t2 = tokio::spawn(async move {
         let (resp_tx, resp_rx) = oneshot::channel();
         let cmd = Command::Get {
-            key: "bar".to_string(),
+            key: "http://pie.dev/get".to_string(),
             resp: resp_tx,
         };
 

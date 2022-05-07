@@ -1,8 +1,8 @@
 use bytes::Bytes;
 
 use crate::connection;
+use crate::frame::Frame;
 use crate::parser;
-use crate::Frame;
 use connection::Connection;
 
 use snafu::{prelude::*, ResultExt};
@@ -33,9 +33,9 @@ pub struct Get {
     key: String,
 }
 
-async fn call_api(cli: &mut Client) -> Result<String> {
+async fn call_api(url: &str, cli: &mut Client) -> Result<String> {
     let doge = cli
-        .get("http://pie.dev/get")
+        .get(url)
         .send()
         .await
         .context(HttpSnafu)?
@@ -74,10 +74,12 @@ impl Get {
 
     // 实现 Get 命令：调用 Http 请求，查询 httpbin.org/ip 服务
     pub async fn apply(self, cli: &mut Client, connection: &mut Connection) -> Result<()> {
-        let origin = call_api(cli).await.unwrap_or_else(|error| match error {
-            Error::HttpError { source: _ } => "failed on http".to_string(),
-            _ => "bad json".to_string(),
-        });
+        let origin = call_api(&self.key, cli)
+            .await
+            .unwrap_or_else(|error| match error {
+                Error::HttpError { source: _ } => "failed on http".to_string(),
+                _ => "bad json".to_string(),
+            });
 
         let data = Bytes::from(origin);
 
