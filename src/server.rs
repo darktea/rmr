@@ -157,11 +157,7 @@ pub async fn loop_on_listener(
     }
 }
 
-pub async fn run(shutdown: impl Future) -> Result<()> {
-    let listener = TcpListener::bind("127.0.0.1:6379").await.context(IoSnafu)?;
-
-    warn!("the server starts to listen on PORT: 6379");
-
+pub async fn run(listener: TcpListener, shutdown: impl Future) -> Result<()> {
     // 创建一个大小为 1 的 广播型 channel：当要 shutdown 整个 server 时，
     // 对所有的异步 tasks 进行广播现在要 Shutdown
     // 所有的异步任务接收到 shutdown 通知后，从异步任务循环中退出
